@@ -51,7 +51,7 @@
 #                                                                                           #
 #############################################################################################
 
-VERSION='v1.0.0'
+VERSION='v1.0.1'
 LAST_MODIFIED='2020-06-03'
 
 IPSETS_DIR="/etc/ipsets"
@@ -255,6 +255,19 @@ Add_Iptables () {
 	if ! iptables -C OUTPUT -m set ! --match-set WhitelistCombined dst -m set --match-set BlacklistCombined dst -j IPSETS-LOGDROP 2>/dev/null; then
 		iptables -I OUTPUT -m set ! --match-set WhitelistCombined dst -m set --match-set BlacklistCombined dst -j IPSETS-LOGDROP 2>/dev/null
 	fi
+
+	# Add rules to Docker chains, otherwise Docker skips all other rules
+	if iptables -nL DOCKER 2>/dev/null; then
+		if ! iptables -C DOCKER -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null; then
+			iptables -I DOCKER -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null
+		fi
+	fi
+
+	if iptables -nL DOCKER-USER 2>/dev/null; then
+		if ! iptables -C DOCKER-USER -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null; then
+			iptables -I DOCKER-USER -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null
+		fi
+	fi
 }
 
 Delete_Iptables () {
@@ -262,6 +275,9 @@ Delete_Iptables () {
 	iptables -D FORWARD -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null
 	iptables -D FORWARD -m set ! --match-set WhitelistCombined dst -m set --match-set BlacklistCombined dst -j IPSETS-LOGDROP 2>/dev/null
 	iptables -D OUTPUT -m set ! --match-set WhitelistCombined dst -m set --match-set BlacklistCombined dst -j IPSETS-LOGDROP 2>/dev/null;
+
+	iptables -D DOCKER -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null;
+	iptables -D DOCKER-USER -m set ! --match-set WhitelistCombined src -m set --match-set BlacklistCombined src -j IPSETS-LOGDROP 2>/dev/null;
 
 	# Flush chain
 	iptables -F IPSETS-LOGDROP 2>/dev/null
@@ -802,9 +818,9 @@ esac
 # * Refine logging msgs
 # * Add to github, create one-line install from github, create update process from github (VERSION.md check)
 # * Add different ipset files to Save_IPSets command-line
-# - (Done v1.1) Make whitelist_defaults read from conf file
-# - (Done v1.1) Make blacklist_countries read from/write to conf file
-# - (Done v1.1) Make blocklists read from conf file
+# - (Done v1.0) Make whitelist_defaults read from conf file
+# - (Done v1.0) Make blacklist_countries read from/write to conf file
+# - (Done v1.0) Make blocklists read from conf file
 
 #############################################################################################
 #																							#
@@ -813,4 +829,5 @@ esac
 #############################################################################################
 #
 #	v0.1.0 - 2020-01-20	First finalized Beta version for personal use
-#	v0.1.0 - 2020-06-03	First finalized version
+#	v1.0.0 - 2020-06-03	First finalized version
+#	v1.0.1 - 2020-09-10 Added DOCKER and DOCKER-USER iptable rules to also block any traffic to docker
