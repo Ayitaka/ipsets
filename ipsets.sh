@@ -82,7 +82,7 @@ BLACKLISTCIDR_FILE="${LISTS_DIR}/blacklistcidr.ipset"
 WHITELISTCOMBINED_FILE="${LISTS_DIR}/whitelistcombined.ipset"
 BLACKLISTCOMBINED_FILE="${LISTS_DIR}/blacklistcombined.ipset"
 
-#COUNTRY_LIST=''
+COUNTRY_LIST=''
 
 LOG () {
 	local nowtime
@@ -187,6 +187,7 @@ Blacklist_Countries () {
 	do
 		local country
 		country="$( echo "$line" | awk '{print $1}' )"
+
 		local comment
 		comment="$( echo "$line" | sed -E 's/^[^ ]+ (.*$)/\1/' )"
 
@@ -200,6 +201,23 @@ Blacklist_Countries () {
 #	wait
 
 	echo "$ipsets" | /sbin/ipset restore -!
+}
+
+Create_Blacklisted_Countries_List () {
+	COUNTRY_LIST=''
+
+	while IFS= read -r line
+	do
+		local country
+		country="$( echo "$line" | awk '{print $1}' )"
+
+		if [ "${COUNTRY_LIST}" == '' ]; then
+			COUNTRY_LIST="${country}"
+		else
+			COUNTRY_LIST="${COUNTRY_LIST} ${country}"
+		fi
+	done < $BLACKLIST_COUNTRIES_FILE
+	wait
 }
 
 Blacklist_BlockLists () {
@@ -516,8 +534,12 @@ Stats_IPSets () {
 	blacklisttotal=$(( blacklistlines + blacklistcidrlines + blacklist_manual_lines + blacklistcidr_manual_lines ))
 	totallines=$(( whitelistlines + blacklistlines + whitelistcidrlines + blacklistcidrlines + whitelist_manual_lines + blacklist_manual_lines + whitelistcidr_manual_lines + blacklistcidr_manual_lines ))
 
+	Create_Blacklisted_Countries_List
+
 	echo "------------------------------"
 	echo "IPSets Stats"
+	echo "------------------------------"
+	echo "Blocked Countries: ${COUNTRY_LIST}"
 	echo "------------------------------"
 	echo "Whitelist: 		${whitelistlines}"
 	echo "WhitelistCIDR: 		${whitelistcidrlines}"
