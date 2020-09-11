@@ -479,16 +479,29 @@ Action_IPSets () {
 			fi
 		;;
 		country)
+			Create_Blacklisted_Countries_List
+
 			for country in $value; do
 				sed "\\~Blacklist_Country: ${country}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
 
 				if [ ! "$action" == "del" ]; then
-					ipsets+="$(Get_File "https://ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v action="${actionlong}CIDR" -v country="$country" -v comment="\"Blacklist_Country: ${country} ${comment}\"" '{printf "%s %s comment %s\n", action, $1, comment}')"$'\n'
+						local country_regex=".* ?${country} ?.*"
+						if [[ ! "${COUNTRY_LIST}" =~ $country_regex ]]; then
+							COUNTRY_LIST="${COUNTRY_LIST} ${country}"
+						fi
+						ipsets+="$(Get_File "https://ipdeny.com/ipblocks/data/aggregated/${country}-aggregated.zone" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v action="${actionlong}CIDR" -v country="$country" -v comment="\"Blacklist_Country: ${country} ${comment}\"" '{printf "%s %s comment %s\n", action, $1, comment}')"$'\n'
+				else
+					COUNTRY_LIST=$( echo "${COUNTRY_LIST}" | sed -E "s/${country} ?//" )
 				fi
 				LOG "IPSets ${adddel} Country ${country} ${tofrom} ${blackwhite}CIDR (${comment})"
 			done
 			wait
-		;;
+
+			> "${BLACKLIST_COUNTRIES_FILE}"
+			for country in $COUNTRY_LIST; do
+				echo "${country} Default" >> "${BLACKLIST_COUNTRIES_FILE}"
+			done
+	;;
 		asn)
 			for asn in $value; do
 				sed "\\~Blacklist_ASN ${asn}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
