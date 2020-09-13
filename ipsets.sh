@@ -370,7 +370,7 @@ Swap_IPSets () {
 Refresh_IPSets () {
 	if ! /sbin/ipset -L -n Whitelist_TEMP >/dev/null 2>&1; then /sbin/ipset -q create Whitelist_TEMP hash:ip --maxelem 500000 comment; else /sbin/ipset -q flush Whitelist_TEMP 2>/dev/null; fi
 	if ! /sbin/ipset -L -n WhitelistCIDR_TEMP >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCIDR_TEMP hash:net --maxelem 200000 comment; else /sbin/ipset -q flush WhitelistCIDR_TEMP 2>/dev/null; fi
-	if ! /sbin/ipset -L -n Blacklist_TEMP >/dev/null 2>&1; then /sbin/ipset -q create Blacklist_TEMP hash:ip --maxelem 500000 comment; else /sbin/ipset -q flush Blacklist_TEMP 2>/dev/null; fi
+	if ! /sbin/ipset -L -n Blacklist_TEMP >/dev/null 2>&1; then /sbin/ipset -q create Blacklist_TEMP hash:ip --maxelem 1000000 comment; else /sbin/ipset -q flush Blacklist_TEMP 2>/dev/null; fi
 	if ! /sbin/ipset -L -n BlacklistCIDR_TEMP >/dev/null 2>&1; then /sbin/ipset -q create BlacklistCIDR_TEMP hash:net --maxelem 200000 comment; else /sbin/ipset -q flush BlacklistCIDR_TEMP 2>/dev/null; fi
 
 	Whitelist_Defaults
@@ -408,7 +408,7 @@ Start_IPSets () {
 
 	if ! /sbin/ipset -L -n Whitelist >/dev/null 2>&1; then /sbin/ipset -q create Whitelist hash:ip --maxelem 500000 comment; fi
 	if ! /sbin/ipset -L -n WhitelistCIDR >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCIDR hash:net --maxelem 200000 comment; fi
-	if ! /sbin/ipset -L -n Blacklist >/dev/null 2>&1; then /sbin/ipset -q create Blacklist hash:ip --maxelem 500000 comment; fi
+	if ! /sbin/ipset -L -n Blacklist >/dev/null 2>&1; then /sbin/ipset -q create Blacklist hash:ip --maxelem 1000000 comment; fi
 	if ! /sbin/ipset -L -n BlacklistCIDR >/dev/null 2>&1; then /sbin/ipset -q create BlacklistCIDR hash:net --maxelem 200000 comment; fi
 	if ! /sbin/ipset -L -n Whitelist_Manual >/dev/null 2>&1; then /sbin/ipset -q create Whitelist_Manual hash:ip --maxelem 500000 comment; fi
 	if ! /sbin/ipset -L -n WhitelistCIDR_Manual >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCIDR_Manual hash:net --maxelem 200000 comment; fi
