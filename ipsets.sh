@@ -552,7 +552,28 @@ Stats_IPSets () {
 	echo "------------------------------"
 	echo "IPSets Stats"
 	echo "------------------------------"
-	echo "Blocked Countries: ${COUNTRY_LIST}"
+	echo "Blocked Countries:"
+
+	count=0
+	cline=""
+	maxcount=10
+
+	for country in ${COUNTRY_LIST}; do
+		count=$(( count + 1 ))
+
+		if [ "${count}" -eq "${maxcount}" ]; then
+			echo "${cline} ${country}"
+
+			count=0
+			cline=""
+		else
+			cline="${cline} ${country}"
+		fi
+
+	done
+
+	[ -n "${cline}" ] && echo "${cline}"
+
 	echo "------------------------------"
 	echo "Whitelist: 		${whitelistlines}"
 	echo "WhitelistCIDR: 		${whitelistcidrlines}"
