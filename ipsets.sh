@@ -46,13 +46,13 @@
 #               https://www.iso.org/obp/ui/#search                                          #
 #                                                                                           #
 #       NOTE: Lists of ASNs:                                                                #
-#               https://ipinfo.io/countries                                                 #
+#               https://api.bgpview.io/                                                     #
 #               https://www.cc2asn.com/                                                     #
 #                                                                                           #
 #############################################################################################
 
-VERSION='v1.0.1'
-LAST_MODIFIED='2020-06-03'
+VERSION='v1.1.0'
+LAST_MODIFIED='2022-02-19'
 
 IPSETS_DIR="/etc/ipsets"
 CONF_DIR="${IPSETS_DIR}/conf"
@@ -140,7 +140,7 @@ Whitelist_Defaults () {
 		ipsets+="$( echo "$line" | sed -E 's/^([^ ]+) (.*)$/add Whitelist_TEMP \1 comment \"Whitelist_Defaults: \2\"/' )"$'\n'
 	done < $WHITELIST_DEFAULTS_FILE
 
-	local domains="ipinfo.io
+	local domains="api.bgpview.io
 			ipdeny.com
 			ipapi.co
 			iplists.firehol.org
@@ -168,7 +168,7 @@ Whitelist_Defaults () {
 Whitelist_CDN () {
 	local ipsets=''
 	for asn in AS714 AS12222 AS16625 AS33438 AS20446 AS54113; do
-		ipsets+="$(Get_File "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v asn="$asn" '{printf "add WhitelistCIDR_TEMP %s comment \"Whitelist_CDN: %s\"\n", $1, asn }')"$'\n'
+		ipsets+="$(Get_File "https://api.bgpview.io/asn/$asn/prefixes" | grep -oE '.{20}([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | grep -vF "parent" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | tr -d "\\\\" | awk -v asn="$asn" '{printf "add WhitelistCIDR_TEMP %s comment \"Whitelist_CDN: %s\"\n", $1, asn }')"$'\n'
 	done
 	wait
 
@@ -504,9 +504,9 @@ Action_IPSets () {
 	;;
 		asn)
 			for asn in $value; do
-				sed "\\~Blacklist_ASN ${asn}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
+				sed "\\~Blacklist_ASN: ${asn}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
 				if [ ! "$action" == "del" ]; then
-					ipsets+="$(Get_File "https://ipinfo.io/$asn" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk -v action="${actionlong}CIDR" -v asn="$asn" -v comment="\"Blacklist_ASN: ${asn} ${comment}\"" '{printf "%s %s comment %s\n", action, $1, comment }')"$'\n'
+					ipsets+="$(Get_File "https://api.bgpview.io/asn/$asn/prefixes" | grep -oE '.{20}([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | grep -vF "parent" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | tr -d "\\\\" | awk -v action="${actionlong}CIDR" -v asn="$asn" -v comment="\"Blacklist_ASN: ${asn} ${comment}\"" '{printf "%s %s comment %s\n", action, $1, comment }')"$'\n'
 				fi
 				LOG "IPSets ${adddel} ASN ${asn} ${tofrom} ${blackwhite}CIDR (${comment})"
 			done
@@ -780,7 +780,7 @@ Help_IPSets () {
 #               https://www.iso.org/obp/ui/#search                                          #
 #                                                                                           #
 #       NOTE: Lists of ASNs:                                                                #
-#               https://ipinfo.io/countries                                                 #
+#               https://api.bgpview.io/                                                     #
 #               https://www.cc2asn.com/                                                     #
 #                                                                                           #
 #############################################################################################
@@ -887,3 +887,5 @@ esac
 #	v0.1.0 - 2020-01-20	First finalized Beta version for personal use
 #	v1.0.0 - 2020-06-03	First finalized version
 #	v1.0.1 - 2020-09-10 Added DOCKER and DOCKER-USER iptable rules to also block any traffic to docker
+#	v1.1.0 - 2022-02-19	Removed crippled ipinfo.io for ASN lookups and replaced with api.bgpview.io
+#						Fixed missing : after Blacklist_ASN when deleting by ASN
