@@ -14,8 +14,20 @@ Originally based, in part, on [Skynet](https://github.com/Adamm00/IPSet_ASUS) by
 
 ## ***Requirements***
 
+## ***Installing***
+
+As the root user:
+
+```bash
+curl --retry 3 "https://raw.githubusercontent.com/Ayitaka/ipsets/master/ipsets.sh" -o "./ipsets.sh" && chmod 0700 ./ipsets.sh && ./ipsets.sh install
+```
+
 ## ***How To Use***
 
+After installation, from the command line type:
+```bash
+ipsets help
+```
 ---
 
 ```
