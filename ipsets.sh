@@ -51,8 +51,8 @@
 #                                                                                           #
 #############################################################################################
 
-VERSION='v1.1.0'
-LAST_MODIFIED='2022-02-19'
+VERSION='v1.1.1'
+LAST_MODIFIED='2023-09-01'
 
 IPSETS_DIR="/etc/ipsets"
 CONF_DIR="${IPSETS_DIR}/conf"
@@ -122,8 +122,15 @@ Get_File () {
 		cat "${file}"
 }
 
-Exec_IPSets () {
-	/sbin/ipset "$@"
+function Exec_IPSet () {
+	if [ -x /sbin/ipset ]; then
+		/sbin/ipset "$@"
+	elif [ -x /usr/sbin/ipset ]; then
+		/usr/sbin/ipset "$@"
+	else
+		LOG "IPSets unable to find ipset executable at /sbin/ipset or /usr/sbin/ipset"
+		exit 1
+	fi
 }
 
 Whitelist_Defaults () {
@@ -155,14 +162,14 @@ Whitelist_Defaults () {
 		done
 	done
 
-	#echo "$ipsets" | tr -d "\t" | Filter_IPLine | /sbin/ipset restore -!
+	#echo "$ipsets" | tr -d "\t" | Filter_IPLine | Exec_IPSet restore -!
 	local whitelist
 	whitelist="$(echo "${ipsets}" | grep -oE '.*([0-9]{1,3}\.){3}[0-9]{1,3}\s+.*' )"
 	local whitelistcidr
 	whitelistcidr="$( echo "${ipsets}" | grep -oE '.*([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}.*' | sed 's~add Whitelist_TEMP~add WhitelistCIDR_TEMP~g' )"
 
-	echo "$whitelist" | /sbin/ipset restore -!
-	echo "$whitelistcidr" | /sbin/ipset restore -!
+	echo "$whitelist" | Exec_IPSet restore -!
+	echo "$whitelistcidr" | Exec_IPSet restore -!
 }
 
 Whitelist_CDN () {
@@ -175,7 +182,7 @@ Whitelist_CDN () {
 	ipsets+="$(Get_File https://www.cloudflare.com/ips-v4 | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add WhitelistCIDR_TEMP %s comment \"Whitelist_CDN: CloudFlare\"\n", $1 }')"$'\n'
 	ipsets+="$(Get_File https://ip-ranges.amazonaws.com/ip-ranges.json | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | awk '{printf "add WhitelistCIDR_TEMP %s comment \"Whitelist_CDN: Amazon\"\n", $1 }')"$'\n'
 
-	echo "$ipsets" | /sbin/ipset restore -!
+	echo "$ipsets" | Exec_IPSet restore -!
 }
 
 Blacklist_Countries () {
@@ -200,7 +207,7 @@ Blacklist_Countries () {
 #	done
 #	wait
 
-	echo "$ipsets" | /sbin/ipset restore -!
+	echo "$ipsets" | Exec_IPSet restore -!
 }
 
 Create_Blacklisted_Countries_List () {
@@ -240,8 +247,8 @@ Blacklist_BlockLists () {
 	local blacklistcidr
 	blacklistcidr="$( echo "${ipsets}" | grep -oE '.*([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}.*' | sed 's~add Blacklist_TEMP~add BlacklistCIDR_TEMP~g' )"
 
-	echo "$blacklist" | /sbin/ipset restore -!
-	echo "$blacklistcidr" | /sbin/ipset restore -!
+	echo "$blacklist" | Exec_IPSet restore -!
+	echo "$blacklistcidr" | Exec_IPSet restore -!
 }
 
 Add_Iptables () {
@@ -306,72 +313,72 @@ Delete_Iptables () {
 
 Save_IPSets () {
 	if [ -z "$1" ]; then
-		{ /sbin/ipset save Whitelist; /sbin/ipset save WhitelistCIDR; /sbin/ipset save Blacklist; /sbin/ipset save BlacklistCIDR; /sbin/ipset save Whitelist_Manual; /sbin/ipset save WhitelistCIDR_Manual; /sbin/ipset save Blacklist_Manual; /sbin/ipset save BlacklistCIDR_Manual; /sbin/ipset save WhitelistCombined; /sbin/ipset save BlacklistCombined; } > "$IPSET_FILE"
+		{ Exec_IPSet save Whitelist; Exec_IPSet save WhitelistCIDR; Exec_IPSet save Blacklist; Exec_IPSet save BlacklistCIDR; Exec_IPSet save Whitelist_Manual; Exec_IPSet save WhitelistCIDR_Manual; Exec_IPSet save Blacklist_Manual; Exec_IPSet save BlacklistCIDR_Manual; Exec_IPSet save WhitelistCombined; Exec_IPSet save BlacklistCombined; } > "$IPSET_FILE"
 	else
 		case "$1" in
 			whitelist)
-				/sbin/ipset save Whitelist > "$WHITELIST_FILE"
+				Exec_IPSet save Whitelist > "$WHITELIST_FILE"
 			;;
 			whitelistcidr)
-				/sbin/ipset save WhitelistCIDR > "$WHITELISTCIDR_FILE"
+				Exec_IPSet save WhitelistCIDR > "$WHITELISTCIDR_FILE"
 			;;
 			blacklist)
-				/sbin/ipset save Blacklist > "$BLACKLIST_FILE"
+				Exec_IPSet save Blacklist > "$BLACKLIST_FILE"
 			;;
 			blacklistcidr)
-				/sbin/ipset save BlacklistCIDR > "$BLACKLISTCIDR_FILE"
+				Exec_IPSet save BlacklistCIDR > "$BLACKLISTCIDR_FILE"
 			;;
 			whitelist_manual)
-				/sbin/ipset save Whitelist > "$WHITELIST_FILE"
+				Exec_IPSet save Whitelist > "$WHITELIST_FILE"
 			;;
 			whitelistcidr_manual)
-				/sbin/ipset save WhitelistCIDR > "$WHITELISTCIDR_FILE"
+				Exec_IPSet save WhitelistCIDR > "$WHITELISTCIDR_FILE"
 			;;
 			blacklist_manual)
-				/sbin/ipset save Blacklist > "$BLACKLIST_FILE"
+				Exec_IPSet save Blacklist > "$BLACKLIST_FILE"
 			;;
 			blacklistcidr_manual)
-				/sbin/ipset save BlacklistCIDR > "$BLACKLISTCIDR_FILE"
+				Exec_IPSet save BlacklistCIDR > "$BLACKLISTCIDR_FILE"
 			;;
 			whitelistcombined)
-				/sbin/ipset save WhitelistCombined > "$WHITELISTCOMBINED_FILE"
+				Exec_IPSet save WhitelistCombined > "$WHITELISTCOMBINED_FILE"
 			;;
 			blacklistcombined)
-				/sbin/ipset save BlacklistCombined > "$BLACKLISTCOMBINED_FILE"
+				Exec_IPSet save BlacklistCombined > "$BLACKLISTCOMBINED_FILE"
 			;;
 			all)
-				/sbin/ipset save Whitelist > "$WHITELIST_FILE"
-				/sbin/ipset save WhitelistCIDR > "$WHITELISTCIDR_FILE"
-				/sbin/ipset save Blacklist > "$BLACKLIST_FILE"
-				/sbin/ipset save BlacklistCIDR > "$BLACKLISTCIDR_FILE"
-				/sbin/ipset save Whitelist_Manual > "$WHITELIST_FILE"
-				/sbin/ipset save WhitelistCIDR_Manual > "$WHITELISTCIDR_FILE"
-				/sbin/ipset save Blacklist_Manual > "$BLACKLIST_FILE"
-				/sbin/ipset save BlacklistCIDR_Manual > "$BLACKLISTCIDR_FILE"
-				/sbin/ipset save WhitelistCombined > "$WHITELISTCOMBINED_FILE"
-				/sbin/ipset save BlacklistCombined > "$BLACKLISTCOMBINED_FILE"
+				Exec_IPSet save Whitelist > "$WHITELIST_FILE"
+				Exec_IPSet save WhitelistCIDR > "$WHITELISTCIDR_FILE"
+				Exec_IPSet save Blacklist > "$BLACKLIST_FILE"
+				Exec_IPSet save BlacklistCIDR > "$BLACKLISTCIDR_FILE"
+				Exec_IPSet save Whitelist_Manual > "$WHITELIST_FILE"
+				Exec_IPSet save WhitelistCIDR_Manual > "$WHITELISTCIDR_FILE"
+				Exec_IPSet save Blacklist_Manual > "$BLACKLIST_FILE"
+				Exec_IPSet save BlacklistCIDR_Manual > "$BLACKLISTCIDR_FILE"
+				Exec_IPSet save WhitelistCombined > "$WHITELISTCOMBINED_FILE"
+				Exec_IPSet save BlacklistCombined > "$BLACKLISTCOMBINED_FILE"
 			;;
 			combined)
-				{ /sbin/ipset save Whitelist; /sbin/ipset save WhitelistCIDR; /sbin/ipset save Blacklist; /sbin/ipset save BlacklistCIDR; /sbin/ipset save Whitelist_Manual; /sbin/ipset save WhitelistCIDR_Manual; /sbin/ipset save Blacklist_Manual; /sbin/ipset save BlacklistCIDR_Manual; /sbin/ipset save WhitelistCombined; /sbin/ipset save BlacklistCombined; } > "$IPSET_FILE"
+				{ Exec_IPSet save Whitelist; Exec_IPSet save WhitelistCIDR; Exec_IPSet save Blacklist; Exec_IPSet save BlacklistCIDR; Exec_IPSet save Whitelist_Manual; Exec_IPSet save WhitelistCIDR_Manual; Exec_IPSet save Blacklist_Manual; Exec_IPSet save BlacklistCIDR_Manual; Exec_IPSet save WhitelistCombined; Exec_IPSet save BlacklistCombined; } > "$IPSET_FILE"
 			;;
 			*)
-				{ /sbin/ipset save Whitelist; /sbin/ipset save WhitelistCIDR; /sbin/ipset save Blacklist; /sbin/ipset save BlacklistCIDR; /sbin/ipset save Whitelist_Manual; /sbin/ipset save WhitelistCIDR_Manual; /sbin/ipset save Blacklist_Manual; /sbin/ipset save BlacklistCIDR_Manual; /sbin/ipset save WhitelistCombined; /sbin/ipset save BlacklistCombined; } > "$IPSET_FILE"
+				{ Exec_IPSet save Whitelist; Exec_IPSet save WhitelistCIDR; Exec_IPSet save Blacklist; Exec_IPSet save BlacklistCIDR; Exec_IPSet save Whitelist_Manual; Exec_IPSet save WhitelistCIDR_Manual; Exec_IPSet save Blacklist_Manual; Exec_IPSet save BlacklistCIDR_Manual; Exec_IPSet save WhitelistCombined; Exec_IPSet save BlacklistCombined; } > "$IPSET_FILE"
 			;;
 		esac
 	fi
 }
 
 Swap_IPSets () {
-	/sbin/ipset -q swap "${1}_TEMP" "${1}" 2>/dev/null
-	/sbin/ipset -q flush "${1}_TEMP" 2>/dev/null
-	/sbin/ipset -q destroy "${1}_TEMP" 2>/dev/null
+	Exec_IPSet -q swap "${1}_TEMP" "${1}" 2>/dev/null
+	Exec_IPSet -q flush "${1}_TEMP" 2>/dev/null
+	Exec_IPSet -q destroy "${1}_TEMP" 2>/dev/null
 }
 
 Refresh_IPSets () {
-	if ! /sbin/ipset -L -n Whitelist_TEMP >/dev/null 2>&1; then /sbin/ipset -q create Whitelist_TEMP hash:ip --maxelem 500000 comment; else /sbin/ipset -q flush Whitelist_TEMP 2>/dev/null; fi
-	if ! /sbin/ipset -L -n WhitelistCIDR_TEMP >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCIDR_TEMP hash:net --maxelem 200000 comment; else /sbin/ipset -q flush WhitelistCIDR_TEMP 2>/dev/null; fi
-	if ! /sbin/ipset -L -n Blacklist_TEMP >/dev/null 2>&1; then /sbin/ipset -q create Blacklist_TEMP hash:ip --maxelem 1000000 comment; else /sbin/ipset -q flush Blacklist_TEMP 2>/dev/null; fi
-	if ! /sbin/ipset -L -n BlacklistCIDR_TEMP >/dev/null 2>&1; then /sbin/ipset -q create BlacklistCIDR_TEMP hash:net --maxelem 200000 comment; else /sbin/ipset -q flush BlacklistCIDR_TEMP 2>/dev/null; fi
+	if ! Exec_IPSet -L -n Whitelist_TEMP >/dev/null 2>&1; then Exec_IPSet -q create Whitelist_TEMP hash:ip --maxelem 500000 comment; else Exec_IPSet -q flush Whitelist_TEMP 2>/dev/null; fi
+	if ! Exec_IPSet -L -n WhitelistCIDR_TEMP >/dev/null 2>&1; then Exec_IPSet -q create WhitelistCIDR_TEMP hash:net --maxelem 200000 comment; else Exec_IPSet -q flush WhitelistCIDR_TEMP 2>/dev/null; fi
+	if ! Exec_IPSet -L -n Blacklist_TEMP >/dev/null 2>&1; then Exec_IPSet -q create Blacklist_TEMP hash:ip --maxelem 1000000 comment; else Exec_IPSet -q flush Blacklist_TEMP 2>/dev/null; fi
+	if ! Exec_IPSet -L -n BlacklistCIDR_TEMP >/dev/null 2>&1; then Exec_IPSet -q create BlacklistCIDR_TEMP hash:net --maxelem 200000 comment; else Exec_IPSet -q flush BlacklistCIDR_TEMP 2>/dev/null; fi
 
 	Whitelist_Defaults
 	Whitelist_CDN
@@ -387,8 +394,8 @@ Refresh_IPSets () {
 }
 
 Reset_IPSets () {
-	/sbin/ipset flush
-	/sbin/ipset destroy
+	Exec_IPSet flush
+	Exec_IPSet destroy
 	Delete_Iptables
 	rm -f $IPSET_FILE
 	Start_IPSets
@@ -401,21 +408,21 @@ Start_IPSets () {
 
 	# restore/create combined.ipset
 	if [ -f "$IPSET_FILE" ]; then
-		/sbin/ipset restore -! -f "$IPSET_FILE";
+		Exec_IPSet restore -! -f "$IPSET_FILE";
 	else
 		touch "$IPSET_FILE";
 	fi
 
-	if ! /sbin/ipset -L -n Whitelist >/dev/null 2>&1; then /sbin/ipset -q create Whitelist hash:ip --maxelem 500000 comment; fi
-	if ! /sbin/ipset -L -n WhitelistCIDR >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCIDR hash:net --maxelem 200000 comment; fi
-	if ! /sbin/ipset -L -n Blacklist >/dev/null 2>&1; then /sbin/ipset -q create Blacklist hash:ip --maxelem 1000000 comment; fi
-	if ! /sbin/ipset -L -n BlacklistCIDR >/dev/null 2>&1; then /sbin/ipset -q create BlacklistCIDR hash:net --maxelem 200000 comment; fi
-	if ! /sbin/ipset -L -n Whitelist_Manual >/dev/null 2>&1; then /sbin/ipset -q create Whitelist_Manual hash:ip --maxelem 500000 comment; fi
-	if ! /sbin/ipset -L -n WhitelistCIDR_Manual >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCIDR_Manual hash:net --maxelem 200000 comment; fi
-	if ! /sbin/ipset -L -n Blacklist_Manual >/dev/null 2>&1; then /sbin/ipset -q create Blacklist_Manual hash:ip --maxelem 500000 comment; fi
-	if ! /sbin/ipset -L -n BlacklistCIDR_Manual >/dev/null 2>&1; then /sbin/ipset -q create BlacklistCIDR_Manual hash:net --maxelem 200000 comment; fi
-	if ! /sbin/ipset -L -n WhitelistCombined >/dev/null 2>&1; then /sbin/ipset -q create WhitelistCombined list:set; /sbin/ipset -q -A WhitelistCombined Whitelist; /sbin/ipset -q -A WhitelistCombined WhitelistCIDR; /sbin/ipset -q -A WhitelistCombined Whitelist_Manual; /sbin/ipset -q -A WhitelistCombined WhitelistCIDR_Manual; fi
-	if ! /sbin/ipset -L -n BlacklistCombined >/dev/null 2>&1; then /sbin/ipset -q create BlacklistCombined list:set; /sbin/ipset -q -A BlacklistCombined Blacklist; /sbin/ipset -q -A BlacklistCombined BlacklistCIDR; /sbin/ipset -q -A BlacklistCombined Blacklist_Manual; /sbin/ipset -q -A BlacklistCombined BlacklistCIDR_Manual; fi
+	if ! Exec_IPSet -L -n Whitelist >/dev/null 2>&1; then Exec_IPSet -q create Whitelist hash:ip --maxelem 500000 comment; fi
+	if ! Exec_IPSet -L -n WhitelistCIDR >/dev/null 2>&1; then Exec_IPSet -q create WhitelistCIDR hash:net --maxelem 200000 comment; fi
+	if ! Exec_IPSet -L -n Blacklist >/dev/null 2>&1; then Exec_IPSet -q create Blacklist hash:ip --maxelem 1000000 comment; fi
+	if ! Exec_IPSet -L -n BlacklistCIDR >/dev/null 2>&1; then Exec_IPSet -q create BlacklistCIDR hash:net --maxelem 200000 comment; fi
+	if ! Exec_IPSet -L -n Whitelist_Manual >/dev/null 2>&1; then Exec_IPSet -q create Whitelist_Manual hash:ip --maxelem 500000 comment; fi
+	if ! Exec_IPSet -L -n WhitelistCIDR_Manual >/dev/null 2>&1; then Exec_IPSet -q create WhitelistCIDR_Manual hash:net --maxelem 200000 comment; fi
+	if ! Exec_IPSet -L -n Blacklist_Manual >/dev/null 2>&1; then Exec_IPSet -q create Blacklist_Manual hash:ip --maxelem 500000 comment; fi
+	if ! Exec_IPSet -L -n BlacklistCIDR_Manual >/dev/null 2>&1; then Exec_IPSet -q create BlacklistCIDR_Manual hash:net --maxelem 200000 comment; fi
+	if ! Exec_IPSet -L -n WhitelistCombined >/dev/null 2>&1; then Exec_IPSet -q create WhitelistCombined list:set; Exec_IPSet -q -A WhitelistCombined Whitelist; Exec_IPSet -q -A WhitelistCombined WhitelistCIDR; Exec_IPSet -q -A WhitelistCombined Whitelist_Manual; Exec_IPSet -q -A WhitelistCombined WhitelistCIDR_Manual; fi
+	if ! Exec_IPSet -L -n BlacklistCombined >/dev/null 2>&1; then Exec_IPSet -q create BlacklistCombined list:set; Exec_IPSet -q -A BlacklistCombined Blacklist; Exec_IPSet -q -A BlacklistCombined BlacklistCIDR; Exec_IPSet -q -A BlacklistCombined Blacklist_Manual; Exec_IPSet -q -A BlacklistCombined BlacklistCIDR_Manual; fi
 
 	Refresh_IPSets
 
@@ -427,8 +434,8 @@ Stop_IPSets () {
 
 	Delete_Iptables
 
-	/sbin/ipset flush
-	/sbin/ipset destroy
+	Exec_IPSet flush
+	Exec_IPSet destroy
 }
 
 Action_IPSets () {
@@ -468,7 +475,7 @@ Action_IPSets () {
 			LOG "IPSets ${adddel} CIDR ${value} ${tofrom} ${blackwhite}CIDR_Manual (${comment})"
 		;;
 		domain)
-			sed "\\~Blacklist_Manual: Domain ${value}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
+			sed "\\~Blacklist_Manual: Domain ${value}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | Exec_IPSet restore -!
 			if [ ! "$action" == "del" ]; then
 				for ip in $(Domain_Lookup "$value"); do
 					ipsets+="${actionlong}_Manual ${ip} comment \"Blacklist_Manual: Domain ${value} ${comment}\""
@@ -482,7 +489,7 @@ Action_IPSets () {
 			Create_Blacklisted_Countries_List
 
 			for country in $value; do
-				sed "\\~Blacklist_Country: ${country}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
+				sed "\\~Blacklist_Country: ${country}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | Exec_IPSet restore -!
 
 				if [ ! "$action" == "del" ]; then
 						local country_regex=".* ?${country} ?.*"
@@ -504,7 +511,7 @@ Action_IPSets () {
 	;;
 		asn)
 			for asn in $value; do
-				sed "\\~Blacklist_ASN: ${asn}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
+				sed "\\~Blacklist_ASN: ${asn}~!d;s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | Exec_IPSet restore -!
 				if [ ! "$action" == "del" ]; then
 					ipsets+="$(Get_File "https://api.bgpview.io/asn/$asn/prefixes" | grep -oE '.{20}([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | grep -vF "parent" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}\\/[0-9]{1,2}' | tr -d "\\\\" | awk -v action="${actionlong}CIDR" -v asn="$asn" -v comment="\"Blacklist_ASN: ${asn} ${comment}\"" '{printf "%s %s comment %s\n", action, $1, comment }')"$'\n'
 				fi
@@ -520,7 +527,7 @@ Action_IPSets () {
 					LOG "IPSets listed matches to regex ${regex} in comments from ${blackwhite}s"
 				;;
 				del)
-					sed -r "${regex};s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | /sbin/ipset restore -!
+					sed -r "${regex};s~ comment.*~~;s~add~del~g" "$IPSET_FILE" | Exec_IPSet restore -!
 					LOG "IPSets deleted matches to regex ${regex} in comments from ${blackwhite}s"
 				;;
 			esac
@@ -528,22 +535,22 @@ Action_IPSets () {
 	esac
 
 	if [ -n "$ipsets" ]; then
-		echo "$ipsets" | /sbin/ipset restore -!
+		echo "$ipsets" | Exec_IPSet restore -!
 	fi
 
 	Save_IPSets combined
 }
 
 Stats_IPSets () {
-	whitelistlines=$( /sbin/ipset -L -t Whitelist | grep 'Number of entries:' | awk '{print $4}' )
-	whitelistcidrlines=$( /sbin/ipset -L -t WhitelistCIDR | grep 'Number of entries:' | awk '{print $4}' )
-	whitelist_manual_lines=$( /sbin/ipset -L -t Whitelist_Manual | grep 'Number of entries:' | awk '{print $4}' )
-	whitelistcidr_manual_lines=$( /sbin/ipset -L -t WhitelistCIDR_Manual | grep 'Number of entries:' | awk '{print $4}' )
+	whitelistlines=$( Exec_IPSet -L -t Whitelist | grep 'Number of entries:' | awk '{print $4}' )
+	whitelistcidrlines=$( Exec_IPSet -L -t WhitelistCIDR | grep 'Number of entries:' | awk '{print $4}' )
+	whitelist_manual_lines=$( Exec_IPSet -L -t Whitelist_Manual | grep 'Number of entries:' | awk '{print $4}' )
+	whitelistcidr_manual_lines=$( Exec_IPSet -L -t WhitelistCIDR_Manual | grep 'Number of entries:' | awk '{print $4}' )
 	whitelisttotal=$(( whitelistlines + whitelistcidrlines + whitelist_manual_lines + whitelistcidr_manual_lines ))
-	blacklistlines=$( /sbin/ipset -L -t Blacklist | grep 'Number of entries:' | awk '{print $4}' )
-	blacklistcidrlines=$( /sbin/ipset -L -t BlacklistCIDR | grep 'Number of entries:' | awk '{print $4}' )
-	blacklist_manual_lines=$( /sbin/ipset -L -t Blacklist_Manual | grep 'Number of entries:' | awk '{print $4}' )
-	blacklistcidr_manual_lines=$( /sbin/ipset -L -t BlacklistCIDR_Manual | grep 'Number of entries:' | awk '{print $4}' )
+	blacklistlines=$( Exec_IPSet -L -t Blacklist | grep 'Number of entries:' | awk '{print $4}' )
+	blacklistcidrlines=$( Exec_IPSet -L -t BlacklistCIDR | grep 'Number of entries:' | awk '{print $4}' )
+	blacklist_manual_lines=$( Exec_IPSet -L -t Blacklist_Manual | grep 'Number of entries:' | awk '{print $4}' )
+	blacklistcidr_manual_lines=$( Exec_IPSet -L -t BlacklistCIDR_Manual | grep 'Number of entries:' | awk '{print $4}' )
 	blacklisttotal=$(( blacklistlines + blacklistcidrlines + blacklist_manual_lines + blacklistcidr_manual_lines ))
 	totallines=$(( whitelistlines + blacklistlines + whitelistcidrlines + blacklistcidrlines + whitelist_manual_lines + blacklist_manual_lines + whitelistcidr_manual_lines + blacklistcidr_manual_lines ))
 
@@ -889,3 +896,5 @@ esac
 #	v1.0.1 - 2020-09-10 Added DOCKER and DOCKER-USER iptable rules to also block any traffic to docker
 #	v1.1.0 - 2022-02-19	Removed crippled ipinfo.io for ASN lookups and replaced with api.bgpview.io
 #						Fixed missing : after Blacklist_ASN when deleting by ASN
+#	v1.1.1 - 2023-09-01	Expanded Exec_IPSet to a function that checks for /sbin/ipset and /usr/sbin/ipset or exits if not found
+#						Replaced all instances of /sbin/ipset with Exec_IPSet function
