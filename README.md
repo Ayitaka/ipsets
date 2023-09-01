@@ -40,7 +40,7 @@ curl --retry 3 "https://raw.githubusercontent.com/Ayitaka/ipsets/master/ipsets.s
 
 After installation, from the command line type:
 ```bash
-ipsets help
+   ipsets help
 ```
 
 ```
